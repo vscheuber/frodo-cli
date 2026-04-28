@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-28T04:00:40.900Z",
+  "generatedAt": "2026-04-28T04:16:05.526Z",
   "status": "passed",
   "summary": "Created a distinct OAuth2 client, created a distinct OAUTH2_MAY_ACT script, and updated the new client for token exchange + oidcMayActScript using MCP only.",
   "input": {
@@ -7,8 +7,8 @@
     "baselineClientId": null
   },
   "resources": {
-    "scriptId": "mcp-mayact-script-1777348840900",
-    "clientId": "mcp-mayact-client-1777348840900",
+    "scriptId": "mcp-mayact-script-1777349765526",
+    "clientId": "mcp-mayact-client-1777349765526",
     "baselineClientId": "id4ai-lending-user-client"
   },
   "attempts": [
@@ -19,10 +19,10 @@
         "objectType": "Script",
         "realm": "/alpha",
         "namedArgs": {
-          "scriptId": "mcp-mayact-script-1777348840900",
+          "scriptId": "mcp-mayact-script-1777349765526",
           "scriptData": {
-            "_id": "mcp-mayact-script-1777348840900",
-            "name": "mcp-mayact-script-1777348840900",
+            "_id": "mcp-mayact-script-1777349765526",
+            "name": "mcp-mayact-script-1777349765526",
             "context": "OAUTH2_MAY_ACT",
             "language": "JAVASCRIPT",
             "script": "KGZ1bmN0aW9uICgpIHsKICB2YXIgbWF5QWN0ID0gewogICAgc3ViamVjdDogJ2ZpY3Rpb25hbC1zdWJqZWN0LTAwMScsCiAgICBjbGllbnRfaWRzOiBbJ2ZpY3Rpb25hbC1jbGllbnQtYWxwaGEnLCAnZmljdGlvbmFsLWNsaWVudC1iZXRhJ10KICB9OwogIHJldHVybiBtYXlBY3Q7Cn0oKSk7"
@@ -35,18 +35,18 @@
         "toolName": "frodo_create",
         "descriptorId": "script.createScript",
         "data": {
-          "_id": "mcp-mayact-script-1777348840900",
-          "_rev": "1232540068",
-          "name": "mcp-mayact-script-1777348840900",
+          "_id": "mcp-mayact-script-1777349765526",
+          "_rev": "-862295532",
+          "name": "mcp-mayact-script-1777349765526",
           "description": null,
           "script": "KGZ1bmN0aW9uICgpIHsKICB2YXIgbWF5QWN0ID0gewogICAgc3ViamVjdDogJ2ZpY3Rpb25hbC1zdWJqZWN0LTAwMScsCiAgICBjbGllbnRfaWRzOiBbJ2ZpY3Rpb25hbC1jbGllbnQtYWxwaGEnLCAnZmljdGlvbmFsLWNsaWVudC1iZXRhJ10KICB9OwogIHJldHVybiBtYXlBY3Q7Cn0oKSk7",
           "default": false,
           "language": "JAVASCRIPT",
           "context": "OAUTH2_MAY_ACT",
           "createdBy": "id=a2245410-33a6-4442-9f3b-453c9aaf158a,ou=user,ou=am-config",
-          "creationDate": 1777348841514,
+          "creationDate": 1777349766162,
           "lastModifiedBy": "id=a2245410-33a6-4442-9f3b-453c9aaf158a,ou=user,ou=am-config",
-          "lastModifiedDate": 1777348841514,
+          "lastModifiedDate": 1777349766162,
           "evaluatorVersion": "1.0"
         },
         "metadata": {
@@ -86,7 +86,7 @@
         "objectType": "Script",
         "realm": "/alpha",
         "namedArgs": {
-          "scriptId": "mcp-mayact-script-1777348840900"
+          "scriptId": "mcp-mayact-script-1777349765526"
         }
       },
       "isError": false,
@@ -95,17 +95,17 @@
         "toolName": "frodo_read",
         "descriptorId": "script.readScript",
         "data": {
-          "_id": "mcp-mayact-script-1777348840900",
-          "name": "mcp-mayact-script-1777348840900",
+          "_id": "mcp-mayact-script-1777349765526",
+          "name": "mcp-mayact-script-1777349765526",
           "description": null,
           "script": "KGZ1bmN0aW9uICgpIHsKICB2YXIgbWF5QWN0ID0gewogICAgc3ViamVjdDogJ2ZpY3Rpb25hbC1zdWJqZWN0LTAwMScsCiAgICBjbGllbnRfaWRzOiBbJ2ZpY3Rpb25hbC1jbGllbnQtYWxwaGEnLCAnZmljdGlvbmFsLWNsaWVudC1iZXRhJ10KICB9OwogIHJldHVybiBtYXlBY3Q7Cn0oKSk7",
           "default": false,
           "language": "JAVASCRIPT",
           "context": "OAUTH2_MAY_ACT",
           "createdBy": "id=a2245410-33a6-4442-9f3b-453c9aaf158a,ou=user,ou=am-config",
-          "creationDate": 1777348841514,
+          "creationDate": 1777349766162,
           "lastModifiedBy": "id=a2245410-33a6-4442-9f3b-453c9aaf158a,ou=user,ou=am-config",
-          "lastModifiedDate": 1777348841514,
+          "lastModifiedDate": 1777349766162,
           "evaluatorVersion": "1.0"
         },
         "metadata": {
@@ -2536,6 +2536,151 @@
             }
           },
           {
+            "_id": "mcp-mayact-client-1777348840900",
+            "_rev": "1803025856",
+            "overrideOAuth2ClientConfig": {
+              "issueRefreshToken": true,
+              "validateScopePluginType": "PROVIDER",
+              "tokenEncryptionEnabled": false,
+              "enableApplicationContext": false,
+              "acceptAudienceParametersInTokenExchangeRequests": false,
+              "evaluateScopePluginType": "PROVIDER",
+              "oidcMayActScript": "mcp-mayact-script-1777348840900",
+              "oidcClaimsScript": "[Empty]",
+              "scopesPolicySet": "oauth2Scopes",
+              "accessTokenModificationPluginType": "PROVIDER",
+              "authorizeEndpointDataProviderClass": "org.forgerock.oauth2.core.plugins.registry.DefaultEndpointDataProvider",
+              "useForceAuthnForMaxAge": false,
+              "oidcClaimsPluginType": "PROVIDER",
+              "providerOverridesEnabled": false,
+              "authorizeEndpointDataProviderScript": "[Empty]",
+              "statelessTokensEnabled": false,
+              "authorizeEndpointDataProviderPluginType": "PROVIDER",
+              "remoteConsentServiceId": null,
+              "enableRemoteConsent": false,
+              "validateScopeClass": "org.forgerock.oauth2.core.plugins.registry.DefaultScopeValidator",
+              "usePolicyEngineForScope": false,
+              "evaluateScopeClass": "org.forgerock.oauth2.core.plugins.registry.DefaultScopeEvaluator",
+              "overrideableOIDCClaims": [],
+              "accessTokenMayActScript": "[Empty]",
+              "evaluateScopeScript": "[Empty]",
+              "clientsCanSkipConsent": false,
+              "accessTokenModificationScript": "[Empty]",
+              "issueRefreshTokenOnRefreshedToken": true,
+              "validateScopeScript": "[Empty]"
+            },
+            "advancedOAuth2ClientConfig": {
+              "logoUri": [],
+              "subjectType": "public",
+              "clientUri": [],
+              "tokenExchangeAuthLevel": 1,
+              "responseTypes": [
+                "code",
+                "token",
+                "id_token"
+              ],
+              "mixUpMitigation": false,
+              "customProperties": [],
+              "javascriptOrigins": [
+                "http://localhost:3003"
+              ],
+              "policyUri": [],
+              "softwareVersion": null,
+              "tosURI": [],
+              "sectorIdentifierUri": null,
+              "tokenEndpointAuthMethod": "client_secret_basic",
+              "refreshTokenGracePeriod": 0,
+              "isConsentImplied": true,
+              "softwareIdentity": null,
+              "grantTypes": [
+                "authorization_code",
+                "refresh_token",
+                "urn:ietf:params:oauth:grant-type:token-exchange"
+              ],
+              "allowedResourceServerAudienceValues": [],
+              "require_pushed_authorization_requests": false,
+              "descriptions": [
+                "id4ai-lending-user-client"
+              ],
+              "requestUris": [],
+              "name": [],
+              "contacts": [],
+              "updateAccessToken": null,
+              "acceptedJwtIssuers": [],
+              "introspectionPolicySets": [],
+              "treeName": "[Empty]"
+            },
+            "signEncOAuth2ClientConfig": {
+              "tokenEndpointAuthSigningAlgorithm": "RS256",
+              "idTokenEncryptionEnabled": false,
+              "tokenIntrospectionEncryptedResponseEncryptionAlgorithm": "A128CBC-HS256",
+              "requestParameterSignedAlg": null,
+              "authorizationResponseSigningAlgorithm": "RS256",
+              "clientJwtPublicKey": null,
+              "idTokenPublicEncryptionKey": null,
+              "mTLSSubjectDN": null,
+              "jwkStoreCacheMissCacheTime": 60000,
+              "jwkSet": null,
+              "idTokenEncryptionMethod": "A128CBC-HS256",
+              "jwksUri": null,
+              "tokenIntrospectionEncryptedResponseAlg": "RSA-OAEP-256",
+              "authorizationResponseEncryptionMethod": null,
+              "userinfoResponseFormat": "JSON",
+              "mTLSCertificateBoundAccessTokens": false,
+              "publicKeyLocation": "jwks_uri",
+              "tokenIntrospectionResponseFormat": "JSON",
+              "requestParameterEncryptedEncryptionAlgorithm": "A128CBC-HS256",
+              "userinfoSignedResponseAlg": null,
+              "idTokenEncryptionAlgorithm": "RSA-OAEP-256",
+              "requestParameterEncryptedAlg": null,
+              "authorizationResponseEncryptionAlgorithm": null,
+              "mTLSTrustedCert": null,
+              "jwksCacheTimeout": 3600000,
+              "userinfoEncryptedResponseAlg": null,
+              "idTokenSignedResponseAlg": "RS256",
+              "tokenIntrospectionSignedResponseAlg": "RS256",
+              "userinfoEncryptedResponseEncryptionAlgorithm": "A128CBC-HS256"
+            },
+            "coreOAuth2ClientConfig": {
+              "secretLabelIdentifier": null,
+              "status": "Active",
+              "clientName": [
+                "mcp-mayact-client-1777348840900"
+              ],
+              "clientType": "Public",
+              "loopbackInterfaceRedirection": false,
+              "defaultScopes": [],
+              "refreshTokenLifetime": 604800,
+              "scopes": [
+                "openid"
+              ],
+              "accessTokenLifetime": 3600,
+              "redirectionUris": [
+                "http://localhost:3003/callback"
+              ],
+              "authorizationCodeLifetime": 120
+            },
+            "coreOpenIDClientConfig": {
+              "claims": [],
+              "backchannel_logout_uri": null,
+              "defaultAcrValues": [],
+              "jwtTokenLifetime": 3600,
+              "defaultMaxAgeEnabled": false,
+              "clientSessionUri": null,
+              "defaultMaxAge": 600,
+              "postLogoutRedirectUri": [],
+              "backchannel_logout_session_required": false
+            },
+            "coreUmaClientConfig": {
+              "claimsRedirectionUris": []
+            },
+            "_type": {
+              "_id": "OAuth2Client",
+              "name": "OAuth2 Clients",
+              "collection": true
+            }
+          },
+          {
             "_id": "volker-m2m-jwt",
             "_rev": "-1415024570",
             "overrideOAuth2ClientConfig": {
@@ -3966,16 +4111,16 @@
           },
           "pagination": {
             "isPartial": false,
-            "returnedCount": 31,
+            "returnedCount": 32,
             "requestedPageSize": 1
           },
           "result": {
             "topLevelType": "array",
-            "payloadSizeBytes": 111644,
-            "payloadSizeHuman": "109.0 KiB",
+            "payloadSizeBytes": 115680,
+            "payloadSizeHuman": "113.0 KiB",
             "isLarge": true,
             "warning": "Result is large for inline agent use; narrow the request using scope, deps=false, or paging controls.",
-            "itemCount": 31
+            "itemCount": 32
           }
         }
       },
@@ -4388,10 +4533,10 @@
         "domain": "oauth2oidc",
         "objectType": "OAuth2Client",
         "realm": "/alpha",
-        "positionalArgs": [
-          "mcp-mayact-client-1777348840900",
-          {
-            "_id": "mcp-mayact-client-1777348840900",
+        "namedArgs": {
+          "clientId": "mcp-mayact-client-1777349765526",
+          "clientData": {
+            "_id": "mcp-mayact-client-1777349765526",
             "overrideOAuth2ClientConfig": {
               "issueRefreshToken": true,
               "validateScopePluginType": "PROVIDER",
@@ -4652,7 +4797,7 @@
               "clientName": {
                 "inherited": false,
                 "value": [
-                  "mcp-mayact-client-1777348840900"
+                  "mcp-mayact-client-1777349765526"
                 ]
               },
               "clientType": {
@@ -4740,7 +4885,7 @@
               "collection": true
             }
           }
-        ]
+        }
       },
       "isError": false,
       "message": "",
@@ -4748,8 +4893,8 @@
         "toolName": "frodo_create",
         "descriptorId": "oauth2oidc.client.createOAuth2Client",
         "data": {
-          "_id": "mcp-mayact-client-1777348840900",
-          "_rev": "254497531",
+          "_id": "mcp-mayact-client-1777349765526",
+          "_rev": "-1187283354",
           "overrideOAuth2ClientConfig": {
             "issueRefreshToken": true,
             "validateScopePluginType": "PROVIDER",
@@ -5015,7 +5160,7 @@
             "clientName": {
               "inherited": false,
               "value": [
-                "mcp-mayact-client-1777348840900"
+                "mcp-mayact-client-1777349765526"
               ]
             },
             "clientType": {
@@ -5110,7 +5255,7 @@
           },
           "result": {
             "topLevelType": "object",
-            "payloadSizeBytes": 5869,
+            "payloadSizeBytes": 5871,
             "payloadSizeHuman": "5.7 KiB",
             "isLarge": false,
             "objectKeys": [
@@ -5145,7 +5290,7 @@
         "objectType": "OAuth2Client",
         "realm": "/alpha",
         "positionalArgs": [
-          "mcp-mayact-client-1777348840900"
+          "mcp-mayact-client-1777349765526"
         ]
       },
       "isError": false,
@@ -5154,8 +5299,8 @@
         "toolName": "frodo_read",
         "descriptorId": "oauth2oidc.client.readOAuth2Client",
         "data": {
-          "_id": "mcp-mayact-client-1777348840900",
-          "_rev": "254497531",
+          "_id": "mcp-mayact-client-1777349765526",
+          "_rev": "-1187283354",
           "overrideOAuth2ClientConfig": {
             "issueRefreshToken": true,
             "validateScopePluginType": "PROVIDER",
@@ -5163,7 +5308,7 @@
             "enableApplicationContext": false,
             "acceptAudienceParametersInTokenExchangeRequests": false,
             "evaluateScopePluginType": "PROVIDER",
-            "oidcMayActScript": "mcp-mayact-script-1777348840900",
+            "oidcMayActScript": "mcp-mayact-script-1777349765526",
             "oidcClaimsScript": "[Empty]",
             "scopesPolicySet": "oauth2Scopes",
             "accessTokenModificationPluginType": "PROVIDER",
@@ -5422,7 +5567,7 @@
             "clientName": {
               "inherited": false,
               "value": [
-                "mcp-mayact-client-1777348840900"
+                "mcp-mayact-client-1777349765526"
               ]
             },
             "clientType": {
@@ -5517,7 +5662,7 @@
           },
           "result": {
             "topLevelType": "object",
-            "payloadSizeBytes": 5869,
+            "payloadSizeBytes": 5871,
             "payloadSizeHuman": "5.7 KiB",
             "isLarge": false,
             "objectKeys": [
@@ -5551,11 +5696,11 @@
         "domain": "oauth2oidc",
         "objectType": "OAuth2Client",
         "realm": "/alpha",
-        "positionalArgs": [
-          "mcp-mayact-client-1777348840900",
-          {
-            "_id": "mcp-mayact-client-1777348840900",
-            "_rev": "254497531",
+        "namedArgs": {
+          "clientId": "mcp-mayact-client-1777349765526",
+          "clientData": {
+            "_id": "mcp-mayact-client-1777349765526",
+            "_rev": "-1187283354",
             "overrideOAuth2ClientConfig": {
               "issueRefreshToken": true,
               "validateScopePluginType": "PROVIDER",
@@ -5563,7 +5708,7 @@
               "enableApplicationContext": false,
               "acceptAudienceParametersInTokenExchangeRequests": false,
               "evaluateScopePluginType": "PROVIDER",
-              "oidcMayActScript": "mcp-mayact-script-1777348840900",
+              "oidcMayActScript": "mcp-mayact-script-1777349765526",
               "oidcClaimsScript": "[Empty]",
               "scopesPolicySet": "oauth2Scopes",
               "accessTokenModificationPluginType": "PROVIDER",
@@ -5822,7 +5967,7 @@
               "clientName": {
                 "inherited": false,
                 "value": [
-                  "mcp-mayact-client-1777348840900"
+                  "mcp-mayact-client-1777349765526"
                 ]
               },
               "clientType": {
@@ -5910,7 +6055,7 @@
               "collection": true
             }
           }
-        ]
+        }
       },
       "isError": false,
       "message": "",
@@ -5918,8 +6063,8 @@
         "toolName": "frodo_update",
         "descriptorId": "oauth2oidc.client.updateOAuth2Client",
         "data": {
-          "_id": "mcp-mayact-client-1777348840900",
-          "_rev": "-817279836",
+          "_id": "mcp-mayact-client-1777349765526",
+          "_rev": "723988304",
           "overrideOAuth2ClientConfig": {
             "issueRefreshToken": true,
             "validateScopePluginType": "PROVIDER",
@@ -5927,7 +6072,7 @@
             "enableApplicationContext": false,
             "acceptAudienceParametersInTokenExchangeRequests": false,
             "evaluateScopePluginType": "PROVIDER",
-            "oidcMayActScript": "mcp-mayact-script-1777348840900",
+            "oidcMayActScript": "mcp-mayact-script-1777349765526",
             "oidcClaimsScript": "[Empty]",
             "scopesPolicySet": "oauth2Scopes",
             "accessTokenModificationPluginType": "PROVIDER",
@@ -6186,7 +6331,7 @@
             "clientName": {
               "inherited": false,
               "value": [
-                "mcp-mayact-client-1777348840900"
+                "mcp-mayact-client-1777349765526"
               ]
             },
             "clientType": {
@@ -6281,7 +6426,7 @@
           },
           "result": {
             "topLevelType": "object",
-            "payloadSizeBytes": 5944,
+            "payloadSizeBytes": 5943,
             "payloadSizeHuman": "5.8 KiB",
             "isLarge": false,
             "objectKeys": [
@@ -6316,7 +6461,7 @@
         "objectType": "OAuth2Client",
         "realm": "/alpha",
         "positionalArgs": [
-          "mcp-mayact-client-1777348840900"
+          "mcp-mayact-client-1777349765526"
         ]
       },
       "isError": false,
@@ -6325,8 +6470,8 @@
         "toolName": "frodo_read",
         "descriptorId": "oauth2oidc.client.readOAuth2Client",
         "data": {
-          "_id": "mcp-mayact-client-1777348840900",
-          "_rev": "-817279836",
+          "_id": "mcp-mayact-client-1777349765526",
+          "_rev": "723988304",
           "overrideOAuth2ClientConfig": {
             "issueRefreshToken": true,
             "validateScopePluginType": "PROVIDER",
@@ -6334,7 +6479,7 @@
             "enableApplicationContext": false,
             "acceptAudienceParametersInTokenExchangeRequests": false,
             "evaluateScopePluginType": "PROVIDER",
-            "oidcMayActScript": "mcp-mayact-script-1777348840900",
+            "oidcMayActScript": "mcp-mayact-script-1777349765526",
             "oidcClaimsScript": "[Empty]",
             "scopesPolicySet": "oauth2Scopes",
             "accessTokenModificationPluginType": "PROVIDER",
@@ -6593,7 +6738,7 @@
             "clientName": {
               "inherited": false,
               "value": [
-                "mcp-mayact-client-1777348840900"
+                "mcp-mayact-client-1777349765526"
               ]
             },
             "clientType": {
@@ -6688,7 +6833,7 @@
           },
           "result": {
             "topLevelType": "object",
-            "payloadSizeBytes": 5944,
+            "payloadSizeBytes": 5943,
             "payloadSizeHuman": "5.8 KiB",
             "isLarge": false,
             "objectKeys": [
