@@ -44,6 +44,7 @@
     "mcp:score": "node tools/mcp-agentic-score.mjs",
     "mcp:assess": "node tools/mcp-agentic-assess.mjs",
     "mcp:test-aiagents": "node tools/mcp-aiagent-introspection-test.mjs",
+    "mcp:test-oauth2-mayact": "node tools/mcp-oauth2-mayact-update-test.mjs",
     "lint": "eslint --cache --cache-location .eslintcache \"src/**/*.ts\"",
     "lint:fix": "eslint --cache --cache-location .eslintcache --fix \"src/**/*.ts\"",
     "build": "npm run build:binary",
