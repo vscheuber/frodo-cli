@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-28T03:22:30.355Z",
+  "generatedAt": "2026-04-28T03:24:34.731Z",
   "status": "passed",
   "summary": "AIAgent capabilities are exposed and at least one AI agent record was discovered and introspected successfully.",
   "discovery": {
