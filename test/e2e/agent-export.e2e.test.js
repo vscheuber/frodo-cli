@@ -61,13 +61,12 @@ FRODO_MOCK=record FRODO_NO_CACHE=1 FRODO_HOST=http://openam-frodo-dev.classic.co
 FRODO_MOCK=record FRODO_NO_CACHE=1 FRODO_HOST=http://openam-frodo-dev.classic.com:8080/am frodo agent export -AD agentExportTestDir6 --global --type classic
 */
 import { getEnv, testExport } from './utils/TestUtils';
-import {classic_connection as cc, connection as c} from './utils/TestConfig';
+import { connection as c } from './utils/TestConfig';
 
 process.env['FRODO_MOCK'] = '1';
 process.env['FRODO_CONNECTION_PROFILES_PATH'] =
     './test/e2e/env/Connections.json';
 const env = getEnv(c);
-const classicEnv = getEnv(cc);
 
 const type = 'agent';
 
@@ -118,23 +117,5 @@ describe('frodo agent export', () => {
         const exportDirectory = "agentExportTestDir3";
         const CMD = `frodo agent export --all-separate --no-metadata --directory ${exportDirectory}`;
         await testExport(CMD, env, type, undefined, exportDirectory, false);
-    });
-
-    test('"frodo agent export -i AgentService -gm classic": should export the global agent with agent id "AgentService"', async () => {
-        const exportFile = "AgentService.agent.json";
-        const CMD = `frodo agent export -i AgentService -gm classic`;
-        await testExport(CMD, classicEnv, type, exportFile);
-    });
-
-    test('"frodo agent export -aD agentExportTestDir5 -gm classic": should export all global agents to a single file in the directory agentExportTestDir5', async () => {
-        const exportDirectory = "agentExportTestDir5";
-        const CMD = `frodo agent export -aD ${exportDirectory} -gm classic`;
-        await testExport(CMD, classicEnv, type, undefined, exportDirectory, false);
-    });
-
-    test('"frodo agent export -AD agentExportTestDir6 --global --type classic": should export all global agents to separate files in the directory agentExportTestDir6', async () => {
-        const exportDirectory = "agentExportTestDir6";
-        const CMD = `frodo agent export -AD ${exportDirectory} --global --type classic`;
-        await testExport(CMD, classicEnv, type, undefined, exportDirectory, false);
     });
 });

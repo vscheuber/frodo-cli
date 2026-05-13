@@ -1,0 +1,30 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`frodo agent ai list "frodo agent ai list volker-dev --long": should list ids and statuses of AI agents 1`] = `
+"AIAgent Id          │Status
+banking-assistant   │Active
+FrodoOpsTestAIAgent2│Active
+investment-advisor  │Active
+testAgent           │Active
+lending-agent       │Active
+"
+`;
+
+exports[`frodo agent ai list "frodo agent ai list volker-dev -l": should list ids and statuses of AI agents 1`] = `
+"AIAgent Id          │Status
+banking-assistant   │Active
+FrodoOpsTestAIAgent2│Active
+investment-advisor  │Active
+testAgent           │Active
+lending-agent       │Active
+"
+`;
+
+exports[`frodo agent ai list "frodo agent ai list volker-dev": should list the ids of AI agents 1`] = `
+"banking-assistant
+FrodoOpsTestAIAgent2
+investment-advisor
+testAgent
+lending-agent
+"
+`;

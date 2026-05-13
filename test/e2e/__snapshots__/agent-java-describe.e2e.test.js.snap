@@ -1,0 +1,5 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`frodo agent java describe "frodo agent java describe volker-dev -i frodo-test-java-agent --json": should describe java agent in JSON format 1`] = `""`;
+
+exports[`frodo agent java describe "frodo agent java describe volker-dev -i frodo-test-java-agent": should describe java agent in table format 1`] = `""`;

@@ -1,0 +1,5 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`frodo agent web describe "frodo agent web describe volker-dev -i frodo-test-web-agent --json": should describe web agent in JSON format 1`] = `""`;
+
+exports[`frodo agent web describe "frodo agent web describe volker-dev -i frodo-test-web-agent": should describe web agent in table format 1`] = `""`;

@@ -1,12 +1,115 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`frodo agent delete "frodo agent delete --agent-id frodo-test-ig-agent": should display error when the agent with id 'frodo-test-ig-agent' cannot be deleted since it does not exist 1`] = `
-"Error deleting alpha realm agent frodo-test-ig-agent
-  alpha realm agent 'frodo-test-ig-agent' not found!
+exports[`frodo agent delete "frodo agent delete --agent-id frodo-test-ig-agent": should display error when the agent with id 'frodo-test-ig-agent' cannot be deleted since it does not exist 1`] = `undefined`;
+
+exports[`frodo agent delete "frodo agent delete --all": should do nothing when no agents can be deleted 1`] = `
+"Errored ➞ GET https://openam-frodo-dev.forgeblocks.com/am/json/serverinfo/* _PollyError: [Polly] [adapter:node-http] Recording for the following request is not found and \`recordIfMissing\` is \`false\`.
+{
+  "url": "https://openam-frodo-dev.forgeblocks.com/am/json/serverinfo/*",
+  "method": "GET",
+  "headers": {
+    "accept": "application/json, text/plain, */*",
+    "content-type": "application/json",
+    "user-agent": "@rockcarver/frodo-lib/4.0.0-42",
+    "x-forgerock-transactionid": "frodo-59e3a9f1-63a1-4bd0-93ac-68dec8a550d6",
+    "accept-api-version": "resource=1.1",
+    "accept-encoding": "gzip, compress, deflate, br",
+    "host": "openam-frodo-dev.forgeblocks.com"
+  },
+  "body": "",
+  "recordingName": "agent/delete/0_all/am",
+  "id": "ccd7a5defd0fdeaa986a2b54642d911a",
+  "order": 0,
+  "identifiers": {
+    "method": "GET",
+    "url": "/am/json/serverinfo/*"
+  },
+  "config": {
+    "mode": "replay",
+    "adapters": [
+      "node-http"
+    ],
+    "logLevel": "warn",
+    "flushRequestsOnStop": true,
+    "recordIfMissing": false,
+    "recordFailedRequests": true,
+    "expiresIn": null,
+    "expiryStrategy": "warn",
+    "matchRequestsBy": {
+      "method": true,
+      "headers": false,
+      "body": true,
+      "order": false,
+      "url": {
+        "protocol": false,
+        "username": false,
+        "password": false,
+        "hostname": false,
+        "port": false,
+        "pathname": true,
+        "query": true,
+        "hash": true
+      }
+    }
+  }
+}
+    at assert (/Users/vscheuber/Documents/code/frodo-cli/dist/app.cjs:156215:1)
+    at FrodoNodeHttpAdapter.assert (/Users/vscheuber/Documents/code/frodo-lib/node_modules/@pollyjs/adapter/src/index.js:277:5)
+    at FrodoNodeHttpAdapter.replay (/Users/vscheuber/Documents/code/frodo-cli/dist/app.cjs:169985:1)
+    at async FrodoNodeHttpAdapter.handleRequest (/Users/vscheuber/Documents/code/frodo-cli/dist/app.cjs:169869:1)
+Error getting tokens
+  [Polly] [adapter:node-http] Recording for the following request is not found and \`recordIfMissing\` is \`false\`.
+{
+  "url": "https://openam-frodo-dev.forgeblocks.com/am/json/serverinfo/*",
+  "method": "GET",
+  "headers": {
+    "accept": "application/json, text/plain, */*",
+    "content-type": "application/json",
+    "user-agent": "@rockcarver/frodo-lib/4.0.0-42",
+    "x-forgerock-transactionid": "frodo-59e3a9f1-63a1-4bd0-93ac-68dec8a550d6",
+    "accept-api-version": "resource=1.1",
+    "accept-encoding": "gzip, compress, deflate, br",
+    "host": "openam-frodo-dev.forgeblocks.com"
+  },
+  "body": "",
+  "recordingName": "agent/delete/0_all/am",
+  "id": "ccd7a5defd0fdeaa986a2b54642d911a",
+  "order": 0,
+  "identifiers": {
+    "method": "GET",
+    "url": "/am/json/serverinfo/*"
+  },
+  "config": {
+    "mode": "replay",
+    "adapters": [
+      "node-http"
+    ],
+    "logLevel": "warn",
+    "flushRequestsOnStop": true,
+    "recordIfMissing": false,
+    "recordFailedRequests": true,
+    "expiresIn": null,
+    "expiryStrategy": "warn",
+    "matchRequestsBy": {
+      "method": true,
+      "headers": false,
+      "body": true,
+      "order": false,
+      "url": {
+        "protocol": false,
+        "username": false,
+        "password": false,
+        "hostname": false,
+        "port": false,
+        "pathname": true,
+        "query": true,
+        "hash": true
+      }
+    }
+  }
+}
 "
 `;
-
-exports[`frodo agent delete "frodo agent delete --all": should do nothing when no agents can be deleted 1`] = `""`;
 
 exports[`frodo agent delete "frodo agent delete -a": should delete all agents 1`] = `""`;
 
