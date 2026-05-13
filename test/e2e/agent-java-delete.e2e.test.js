@@ -54,9 +54,8 @@ FRODO_MOCK=record FRODO_NO_CACHE=1 FRODO_HOST=https://openam-frodo-dev.forgebloc
 */
 import cp from 'child_process';
 import { promisify } from 'util';
-import { getEnv, removeAnsiEscapeCodes } from './utils/TestUtils';
+import { clearFixture, getEnv, removeAnsiEscapeCodes, stageFixture } from './utils/TestUtils';
 import { connection as c } from './utils/TestConfig';
-import { clearRecordingData, stageRecordingData } from './utils/AgentFixtureUtils';
 
 const exec = promisify(cp.exec);
 
@@ -71,11 +70,11 @@ const deleteAllAgents = 'frodo agent java delete -a';
 describe('frodo agent java delete', () => {
 
     beforeEach(async () => {
-        await stageRecordingData(stagedAgentImport, env);
+        await stageFixture(stagedAgentImport, env);
     });
 
     afterEach(async () => {
-        await clearRecordingData(deleteAgent, env);
+        await clearFixture(deleteAgent, env);
     });
 
     test('"frodo agent java delete -i frodo-test-java-agent": should delete the java agent with id \'frodo-test-java-agent\'', async () => {
