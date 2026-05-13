@@ -56,22 +56,37 @@ import cp from 'child_process';
 import { promisify } from 'util';
 import { getEnv, removeAnsiEscapeCodes } from './utils/TestUtils';
 import { connection as c } from './utils/TestConfig';
+import { clearRecordingData, stageRecordingData } from './utils/AgentFixtureUtils';
 
 const exec = promisify(cp.exec);
 
-process.env['FRODO_MOCK'] = '1';
+process.env['FRODO_MOCK'] ||= '1';
 const env = getEnv(c);
+
+const stagedAgentImport =
+    'frodo agent import -i frodo-test-ig-agent -f test/e2e/exports/all/allAlphaAgents.agent.json';
+const deleteAgent = 'frodo agent delete -i frodo-test-ig-agent';
+const deleteAllAgents = 'frodo agent delete -a';
 
 describe('frodo agent delete', () => {
 
+    beforeEach(async () => {
+        await stageRecordingData(stagedAgentImport, env);
+    });
+
+    afterEach(async () => {
+        await clearRecordingData(deleteAgent, env);
+    });
+
     test('"frodo agent delete -i frodo-test-ig-agent": should delete the agent with id \'frodo-test-ig-agent\'', async () => {
-        const CMD = `frodo agent delete -i frodo-test-ig-agent`;
+        const CMD = deleteAgent;
         const { stdout } = await exec(CMD, env);
         expect(removeAnsiEscapeCodes(stdout)).toMatchSnapshot();
     });
 
     test('"frodo agent delete --agent-id frodo-test-ig-agent": should display error when the agent with id \'frodo-test-ig-agent\' cannot be deleted since it does not exist', async () => {
-        const CMD = `frodo agent delete --agent-id frodo-test-ig-agent`;
+        const CMD = 'frodo agent delete --agent-id frodo-test-ig-agent';
+        await exec(deleteAgent, env);
         try {
             await exec(CMD, env);
             fail("Command should've failed")
@@ -81,13 +96,14 @@ describe('frodo agent delete', () => {
     });
 
     test('"frodo agent delete -a": should delete all agents', async () => {
-        const CMD = `frodo agent delete -a`;
+        const CMD = deleteAllAgents;
         const { stdout } = await exec(CMD, env);
         expect(removeAnsiEscapeCodes(stdout)).toMatchSnapshot();
     });
 
     test('"frodo agent delete --all": should do nothing when no agents can be deleted', async () => {
-        const CMD = `frodo agent delete --all`;
+        await exec(deleteAgent, env);
+        const CMD = 'frodo agent delete --all';
         const { stderr } = await exec(CMD, env);
         expect(removeAnsiEscapeCodes(stderr)).toMatchSnapshot();
     });

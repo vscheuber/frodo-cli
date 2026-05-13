@@ -56,21 +56,36 @@ import cp from 'child_process';
 import { promisify } from 'util';
 import { getEnv, removeAnsiEscapeCodes } from './utils/TestUtils';
 import { connection as c } from './utils/TestConfig';
+import { clearRecordingData, stageRecordingData } from './utils/AgentFixtureUtils';
 
 const exec = promisify(cp.exec);
 
-process.env['FRODO_MOCK'] = '1';
+process.env['FRODO_MOCK'] ||= '1';
 const env = getEnv(c);
 
+const stagedAgentImport =
+  'frodo agent ai import volker-dev -i testAgent -f test/e2e/exports/all/allAlphaAgents.ai.agent.json';
+const deleteAgent = 'frodo agent ai delete volker-dev -i testAgent';
+const deleteAllAgents = 'frodo agent ai delete volker-dev -a';
+
 describe('frodo agent ai delete', () => {
+  beforeEach(async () => {
+    await stageRecordingData(stagedAgentImport, env);
+  });
+
+  afterEach(async () => {
+    await clearRecordingData(deleteAgent, env);
+  });
+
   test('"frodo agent ai delete volker-dev -i testAgent": should delete AI agent testAgent', async () => {
-    const CMD = 'frodo agent ai delete volker-dev -i testAgent';
+    const CMD = deleteAgent;
     const { stdout } = await exec(CMD, env);
     expect(removeAnsiEscapeCodes(stdout)).toMatchSnapshot();
   });
 
   test('"frodo agent ai delete volker-dev --agent-id testAgent": should fail when testAgent already deleted', async () => {
     const CMD = 'frodo agent ai delete volker-dev --agent-id testAgent';
+    await exec(deleteAgent, env);
     try {
       await exec(CMD, env);
       fail("Command should've failed");
@@ -80,7 +95,7 @@ describe('frodo agent ai delete', () => {
   });
 
   test('"frodo agent ai delete volker-dev -a": should delete all AI agents', async () => {
-    const CMD = 'frodo agent ai delete volker-dev -a';
+    const CMD = deleteAllAgents;
     const { stdout } = await exec(CMD, env);
     expect(removeAnsiEscapeCodes(stdout)).toMatchSnapshot();
   });

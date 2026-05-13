@@ -282,3 +282,33 @@ export async function testFail(
     throw new Error("Command should've failed")
   }
 }
+
+/**
+ * Stage fixture data by executing a staging command (e.g., import fixture data).
+ * Used in beforeEach to set up deterministic test state.
+ * @param {string} command The staging command to run (e.g., 'frodo agent import -i frodo-test-ig-agent -f test/e2e/exports/all/allAlphaAgents.agent.json')
+ * @param {{env: Record<string, string>}} env The environment variables
+ * @param {Object} options Optional configuration
+ * @param {number} options.timeout Optional timeout in milliseconds for the staging command
+ * @returns {Promise<void>}
+ */
+export async function stageFixture(command, env, options = {}) {
+  await exec(command, env);
+}
+
+/**
+ * Clear fixture data by executing a teardown command (e.g., delete fixture data).
+ * Used in afterEach to clean up test state. Idempotent—ignores errors on cleanup.
+ * @param {string} command The cleanup command to run (e.g., 'frodo agent delete -i frodo-test-ig-agent')
+ * @param {{env: Record<string, string>}} env The environment variables
+ * @param {Object} options Optional configuration
+ * @param {number} options.timeout Optional timeout in milliseconds for the cleanup command
+ * @returns {Promise<void>}
+ */
+export async function clearFixture(command, env, options = {}) {
+  try {
+    await exec(command, env);
+  } catch (error) {
+    // ignore cleanup failures so teardown stays idempotent across reruns
+  }
+}

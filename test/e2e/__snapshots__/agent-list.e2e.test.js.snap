@@ -1,8 +1,8 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`frodo agent list "frodo agent list -l": should list the ids, statuses, and types of the agents 1`] = `
+exports[`frodo agent list Cloud Tests: "frodo agent list -l": should list the ids, statuses, and types of the agents 1`] = `
 "Agent Id│Status│Agent Type
 "
 `;
 
-exports[`frodo agent list "frodo agent list": should list the ids of the agents 1`] = `""`;
+exports[`frodo agent list Cloud Tests: "frodo agent list": should list the ids of the agents 1`] = `""`;

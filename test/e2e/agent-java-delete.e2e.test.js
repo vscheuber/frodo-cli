@@ -56,22 +56,37 @@ import cp from 'child_process';
 import { promisify } from 'util';
 import { getEnv, removeAnsiEscapeCodes } from './utils/TestUtils';
 import { connection as c } from './utils/TestConfig';
+import { clearRecordingData, stageRecordingData } from './utils/AgentFixtureUtils';
 
 const exec = promisify(cp.exec);
 
-process.env['FRODO_MOCK'] = '1';
+process.env['FRODO_MOCK'] ||= '1';
 const env = getEnv(c);
+
+const stagedAgentImport =
+    'frodo agent import -i frodo-test-java-agent -f test/e2e/exports/all/allAlphaAgents.agent.json';
+const deleteAgent = 'frodo agent java delete -i frodo-test-java-agent';
+const deleteAllAgents = 'frodo agent java delete -a';
 
 describe('frodo agent java delete', () => {
 
+    beforeEach(async () => {
+        await stageRecordingData(stagedAgentImport, env);
+    });
+
+    afterEach(async () => {
+        await clearRecordingData(deleteAgent, env);
+    });
+
     test('"frodo agent java delete -i frodo-test-java-agent": should delete the java agent with id \'frodo-test-java-agent\'', async () => {
-        const CMD = `frodo agent java delete -i frodo-test-java-agent`;
+        const CMD = deleteAgent;
         const { stdout } = await exec(CMD, env);
         expect(removeAnsiEscapeCodes(stdout)).toMatchSnapshot();
     });
 
     test('"frodo agent java delete --agent-id frodo-test-java-agent": should display error when the java agent with id \'frodo-test-java-agent\' cannot be deleted since it does not exist', async () => {
-        const CMD = `frodo agent java delete --agent-id frodo-test-java-agent`;
+        const CMD = 'frodo agent java delete --agent-id frodo-test-java-agent';
+        await exec(deleteAgent, env);
         try {
             await exec(CMD, env);
             fail("Command should've failed")
@@ -81,13 +96,14 @@ describe('frodo agent java delete', () => {
     });
 
     test('"frodo agent java delete -a": should delete all java agents', async () => {
-        const CMD = `frodo agent java delete -a`;
+        const CMD = deleteAllAgents;
         const { stdout } = await exec(CMD, env);
         expect(removeAnsiEscapeCodes(stdout)).toMatchSnapshot();
     });
 
     test('"frodo agent java delete --all": should do nothing when no java agent can be deleted since none exist', async () => {
-        const CMD = `frodo agent java delete --all`;
+        await exec(deleteAgent, env);
+        const CMD = 'frodo agent java delete --all';
         const { stderr } = await exec(CMD, env);
         expect(removeAnsiEscapeCodes(stderr)).toMatchSnapshot();
     });
