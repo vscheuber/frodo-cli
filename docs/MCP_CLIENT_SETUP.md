@@ -79,8 +79,10 @@ Any MCP client that supports launching a local stdio server should work the same
 Pass `--mcp-auth-token <secret>` and every `POST /mcp` request must carry a matching `Authorization: Bearer <secret>` header; requests without (or with a wrong) token get `401` and a `WWW-Authenticate: Bearer` challenge. The comparison is timing-safe. `GET /health` stays unauthenticated. The token value is never printed in logs or the startup summary, which only reports `HTTP auth: on`:
 
 ```console
-frodo mcp server start --transport http --bind-host 0.0.0.0 --port 6277 --mcp-auth-token <secret>
+frodo mcp server start --transport http --bind-host 0.0.0.0 --port 6277 --mcp-auth-token <secret> my-tenant
 ```
+
+`my-tenant` selects the saved [connection profile](../.github/README.md#connection-profiles) to connect with: a unique substring of, or the alias for, one profile's host URL. It can also come from the `FRODO_HOST` environment variable (same resolution rules; the command-line argument wins if both are set). Without a tenant the server still starts and `/health` answers -- but it is connected to nothing, and every tool call fails; always give it a profile (or explicit `--host`/credentials). The tenant credentials come from that profile, so its stored password must be decryptable on this machine (the `masterkey.key` from the machine that saved the profile).
 
 The token can instead come from the `FRODO_MCP_AUTH_TOKEN` environment variable -- preferred for anything long-lived, since the environment keeps the secret out of process listings (`ps`). The CLI flag wins when both are set; the flag exists for parity and quick testing.
 
@@ -99,7 +101,7 @@ frodo mcp server start --transport http --allowed-hosts mcp.example.internal
 The setup this section exists for: an AI gateway (or other MCP client) running in a Docker container on the same host as frodo. A bridge-network container cannot reach the host's `127.0.0.1` -- inside the container that is the container's own loopback, so the connection is refused. Point the container at the host instead (via `host.docker.internal`, or `extra_hosts: host-gateway:host-gateway` on Linux where the alias does not exist by default), and run frodo bound to a non-loopback interface with a token:
 
 ```console
-frodo mcp server start --transport http --bind-host 0.0.0.0 --port 6277 --mcp-auth-token <secret>
+frodo mcp server start --transport http --bind-host 0.0.0.0 --port 6277 --mcp-auth-token <secret> my-tenant
 ```
 
 ```yaml
@@ -123,7 +125,7 @@ The repository ships a `Dockerfile` (multi-stage: `node:24-slim` build stage run
 FRODO_MCP_AUTH_TOKEN=<secret> docker compose -f docker/docker-compose.yml up -d --build
 ```
 
-The compose service mounts your saved `~/.frodo/Connections.json` read-only, binds the server on `0.0.0.0:6277` inside a user-defined bridge network (`mcpnet`), and healthchecks `GET /health` with a node one-liner (the slim base image has no wget/curl). A gateway co-located on the same network dials frodo by service DNS name -- `http://frodo-mcp:6277/mcp` -- with no host-gateway alias and no published port needed; the commented-out `gateway` block in the compose file shows the shape. The image runs as the non-root `node` user, `ENTRYPOINT` is `dist/launch.cjs` (the signal-forwarding wrapper, so `docker stop` performs the graceful shutdown), and the connection-profile volume is the only state.
+The compose service mounts your saved `~/.frodo/Connections.json` -- **and the `masterkey.key` that decrypts its stored passwords** -- read-only, sets `FRODO_HOST` to select which profile to connect with (a saved profile's host URL, a unique substring, or its alias; without it the container starts healthy but connected to nothing), binds the server on `0.0.0.0:6277` inside a user-defined bridge network (`mcpnet`), and healthchecks `GET /health` with a node one-liner (the slim base image has no wget/curl). A gateway co-located on the same network dials frodo by service DNS name -- `http://frodo-mcp:6277/mcp` -- with no host-gateway alias and no published port needed; the commented-out `gateway` block in the compose file shows the shape. The image runs as the non-root `node` user, `ENTRYPOINT` is `dist/launch.cjs` (the signal-forwarding wrapper, so `docker stop` performs the graceful shutdown), and the connection-profile volume is the only state. The image's default CMD carries no tenant -- override it with the profile name as the final positional argument, or set `FRODO_HOST`, or the server starts unconnected.
 
 > **Co-location requires the service name in the Host allow-list.** When the gateway dials `http://frodo-mcp:6277/mcp`, the `Host` header it sends is `frodo-mcp:6277` -- and that name is NOT in the default allow-list, and NOT covered by the automatic `host.docker.internal` alias (that alias only covers containers dialing the host machine). Without it the server answers `403 Invalid Host` before the token is ever checked. This is why the compose file's command line carries `--allowed-hosts frodo-mcp`: the service's DNS name must be allowed explicitly. If you rename the service (or run frodo under a different container name), allow that name instead.
 

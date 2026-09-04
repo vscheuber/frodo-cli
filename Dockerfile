@@ -53,5 +53,14 @@ EXPOSE 6277
 # resolver loader and forwards lifecycle signals to the child, so
 # `docker stop` (SIGTERM) performs the MCP server's graceful shutdown and
 # releases the port.
+#
+# The connection profile is NOT baked in: the tenant selector is the
+# positional [host] argument (a saved profile's host URL, a unique
+# substring, or its alias) or the FRODO_HOST environment variable. Without
+# one the server starts unconnected (health answers, every tool call
+# fails), so override CMD with the profile name — or set FRODO_HOST — when
+# running. The profile's stored password is encrypted with the
+# masterkey.key of the machine that saved it; mount both that file and
+# Connections.json (see docker/docker-compose.yml for the working example).
 ENTRYPOINT ["node", "dist/launch.cjs"]
 CMD ["mcp", "server", "start", "--transport", "http", "--bind-host", "0.0.0.0", "--port", "6277"]

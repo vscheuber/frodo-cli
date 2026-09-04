@@ -788,18 +788,19 @@ The exact config file and schema differ per client (VS Code uses a `servers` key
 For a server that outlives one client session -- a gateway that several clients or agents share, or a container that cannot spawn processes on your host -- start it yourself as a long-running process over the HTTP transport:
 
 ```console
-frodo mcp server start --transport http --bind-host 0.0.0.0 --port 6277 --mcp-auth-token <secret>
+frodo mcp server start --transport http --bind-host 0.0.0.0 --port 6277 --mcp-auth-token <secret> my-tenant
 ```
 
 The flags that matter:
 
+- `<profile>` (positional, after the flags) -- which saved [connection profile](#connection-profiles) to connect with: a unique substring of, or the alias for, one profile's host URL (also settable via `FRODO_HOST`). Without it the server starts and `/health` answers, but it is connected to nothing and every tool call fails. The profile's stored password must be decryptable on this machine (the `masterkey.key` from the machine that saved the profile).
 - `--transport http` -- serve `POST /mcp` (MCP) and `GET /health` (liveness) instead of stdio.
 - `--bind-host` -- interface to bind. Default `127.0.0.1` (local machine only); `0.0.0.0` or a LAN address exposes the port and is what triggers the token requirement below.
 - `--port` -- default `6277`; `--port auto` lets the OS pick an ephemeral port and reports the resolved value.
 - `--mcp-auth-token <secret>` -- bearer token required on every `/mcp` request. Prefer the `FRODO_MCP_AUTH_TOKEN` environment variable for anything long-lived (keeps the secret out of `ps`); the flag wins if both are set. Required when binding a non-loopback host.
 - `--allowed-hosts <host...>` -- extra `Host` header values to accept, extending the localhost default (see the security model below). Variadic: it swallows everything after it, so put positional arguments before it or separate them with `--`.
 
-The canonical shared-server story is an AI gateway in a Docker container on the same machine: the container dials the host via `host.docker.internal` (accepted automatically on a non-loopback bind), frodo binds non-loopback with a token, and the gateway authenticates with the same secret. The repo also ships a `Dockerfile` and compose stack for running frodo's MCP server itself in Docker. The [client setup guide's HTTP transport section](../docs/MCP_CLIENT_SETUP.md#running-the-http-transport) walks through all of it, including the compose fragments, `frodo mcp server stop`, the PID lockfile, and the operational knobs (`--max-body-size`, `--max-concurrent-requests`, heartbeat) -- the README gives the pattern, that guide gives the detail.
+The canonical shared-server story is an AI gateway in a Docker container on the same machine: the container dials the host via `host.docker.internal` (accepted automatically on a non-loopback bind), frodo binds non-loopback with a token, and the gateway authenticates with the same secret. The repo also ships a `Dockerfile` and compose stack for running frodo's MCP server itself in Docker -- the compose example mounts `Connections.json` **and its `masterkey.key`** read-only and selects the profile via `FRODO_HOST` (the image's default CMD carries no tenant; a container started without one comes up healthy but connected to nothing). The [client setup guide's HTTP transport section](../docs/MCP_CLIENT_SETUP.md#running-the-http-transport) walks through all of it, including the compose fragments, `frodo mcp server stop`, the PID lockfile, and the operational knobs (`--max-body-size`, `--max-concurrent-requests`, heartbeat) -- the README gives the pattern, that guide gives the detail.
 
 ### HTTP transport security model
 
