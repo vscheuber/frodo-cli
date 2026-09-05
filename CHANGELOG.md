@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+## [v4.11.0] - 2026-09-05
+
+### Added
+- Introduced the `config-manager push raw` command, enabling users to push raw configurations directly to the server. This feature enhances flexibility in managing configuration data. (#681)
+- Added the `config-manager pull telemetry` command, allowing users to pull telemetry data for better monitoring and analysis of system performance. (#680)
+- Implemented the `config-manager push secrets` command, providing a secure method to push secret configurations to the server. (#678)
+- Introduced the `config-manager push services` command, facilitating the deployment of service configurations. (#676)
+
+### Changed
+- Updated container image documentation to require explicit selection of a connection profile, ensuring clarity and proper configuration when deploying containers. (#682)
+
+### Fixed
+- Corrected container image handling to ensure connection profiles are selected and documented correctly, preventing potential misconfigurations. (#682)
+
 ## [v4.10.0] - 2026-09-04
 
 ### Added
