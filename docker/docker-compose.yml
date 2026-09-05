@@ -34,6 +34,12 @@ services:
     environment:
       # Bearer token required on /mcp (same secret as the gateway's).
       FRODO_MCP_AUTH_TOKEN: ${FRODO_MCP_AUTH_TOKEN:?set FRODO_MCP_AUTH_TOKEN in your shell or an .env file}
+      # Which saved connection profile to use: the tenant selector is a
+      # unique substring of, or the alias for, one of the profiles in the
+      # mounted Connections.json. Alternative to the positional tenant in
+      # `command:` below — pick ONE (FRODO_HOST is set here as the
+      # single-edit knob; set both only if they name the same profile).
+      FRODO_HOST: ${FRODO_HOST:?set FRODO_HOST to a saved profile's host URL, a unique substring of it, or its alias}
       # Saved connection profile (mounted read-only below) so the server
       # starts without credentials on the command line.
       FRODO_CONNECTION_PROFILES_PATH: /home/node/.frodo/Connections.json
@@ -45,6 +51,11 @@ services:
     volumes:
       # Your saved connection profiles, read-only:
       - ${HOME}/.frodo/Connections.json:/home/node/.frodo/Connections.json:ro
+      # The master key that decrypts the profiles' stored passwords: it
+      # belongs to the machine that SAVED the profile, so copy it next to
+      # Connections.json before mounting. Without it, profile login fails
+      # and the server starts unconnected.
+      - ${HOME}/.frodo/masterkey.key:/home/node/.frodo/masterkey.key:ro
     command:
       [
         "mcp", "server", "start",
@@ -56,6 +67,11 @@ services:
         # Host-header gate answers 403 before auth is ever consulted. If you
         # rename the service/container, allow that name instead.
         "--allowed-hosts", "frodo-mcp",
+        # The tenant selector also works as this positional: a saved
+        # profile's host URL, a unique substring, or its alias. FRODO_HOST
+        # above is set as the env alternative — keep the command argument
+        # out unless you prefer the flag over the env var (either alone is
+        # enough; if both are set they must name the same profile).
       ]
     healthcheck:
       # node:24-slim has no wget/curl; a node one-liner probes /health
