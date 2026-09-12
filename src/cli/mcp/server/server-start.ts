@@ -23,13 +23,18 @@ import {
 import {
   buildAmOAuthMetadata,
   buildAmTokenInfoVerifier,
+  buildClaimMappedCredentialResolver,
+  buildExternalIdpVerifier,
   computeHttpAllowedHosts,
+  fetchExternalIdpMetadata,
   isLoopbackBindHost,
   McpServerStartupInfo,
+  type McpOAuthResourceServerOptions,
   resolveFrodoForMcpRequest,
   startHttpTransport,
   startStdioTransport,
 } from '../../../ops/McpServerOps.js';
+import { loadClaimMappingConfig } from '../../../ops/McpClaimMapping.js';
 import c from '../../../utils/ColorTheme';
 import { printMessage } from '../../../utils/Console';
 import { FrodoCommand } from '../../FrodoCommand';
@@ -88,6 +93,20 @@ type McpStartOptions = {
    * startup and gated by a shared secret.
    */
   oauthResourceServer?: boolean;
+  /**
+   * External-IDP "shared mode": validate bearer tokens against a
+   * third-party OIDC provider (Entra ID, Okta, etc.) instead of the
+   * target AM/AIC tenant. Requires --oauth-resource-server,
+   * --external-idp-audience, and --claims-config together.
+   */
+  externalIdpIssuer?: string;
+  /** Expected audience/client-id claim for --external-idp-issuer. */
+  externalIdpAudience?: string;
+  /**
+   * Path to the claim-to-service-account mapping config file (see
+   * McpClaimMapping.ts). Required with --external-idp-issuer.
+   */
+  claimsConfig?: string;
   /** Max accepted POST /mcp body size in bytes (CLI flag; env fallback). */
   maxBodySize?: string;
   /** Max concurrent POST /mcp handler executions (CLI flag; env fallback). */
@@ -199,8 +218,26 @@ export default function setup() {
     .addOption(
       new Option(
         '--oauth-resource-server',
-        `"Shared mode" — requires --transport http. Instead of authenticating once at startup and gating access with a shared secret (--mcp-auth-token), each request presents its own bearer token, verified against the target tenant's /oauth2/tokeninfo endpoint, and is served as that token's own identity. Mutually exclusive with --mcp-auth-token/--allow-unauthenticated. The target host must be a full URL with an explicit --type (or --deployment-type): this mode never authenticates at startup, so alias/connection-profile resolution — which only happens as a side effect of logging in — does not run.`
+        `"Shared mode" — requires --transport http. Instead of authenticating once at startup and gating access with a shared secret (--mcp-auth-token), each request presents its own bearer token, verified per-request, and is served as a per-request identity. By default (AM as IdP), the token is verified against the target tenant's own /oauth2/tokeninfo endpoint and used directly as the AM credential. Pass --external-idp-issuer to instead validate tokens from a third-party OIDC provider (see below). Mutually exclusive with --mcp-auth-token/--allow-unauthenticated. The target host must be a full URL with an explicit --type (or --deployment-type): this mode never authenticates at startup, so alias/connection-profile resolution — which only happens as a side effect of logging in — does not run.`
       ).default(false)
+    )
+    .addOption(
+      new Option(
+        '--external-idp-issuer <url>',
+        'External-IDP "shared mode": validate bearer tokens against this third-party OIDC provider (its issuer URL, e.g. https://login.microsoftonline.com/<tenant>/v2.0) instead of the target AM/AIC tenant. Requires --oauth-resource-server, --external-idp-audience, and --claims-config together. The external identity only gates access to this server and selects (via --claims-config) which pre-provisioned service account a session uses — it is never itself usable as an AM credential, and can never resolve to an admin account or the profile\'s own primary account.'
+      )
+    )
+    .addOption(
+      new Option(
+        '--external-idp-audience <audience>',
+        'Expected audience (client id) claim on tokens from --external-idp-issuer.'
+      )
+    )
+    .addOption(
+      new Option(
+        '--claims-config <file>',
+        'Path to the claim-to-service-account mapping config for --external-idp-issuer: { claimName: string, mappings: [{ claimValue, serviceAccount }, ...] }. Each serviceAccount must already exist on the target connection profile (see `frodo conn service-account add`). A token whose configured claim matches nothing in this table is refused — there is no default/fallback credential.'
+      )
     )
     .addOption(
       new Option(
@@ -301,6 +338,23 @@ export default function setup() {
         if (/^\s*auto\s*$/i.test(opts.port ?? '')) {
           throw new Error(
             "--oauth-resource-server requires an explicit --port: its own public URL (advertised in RFC 9728 discovery metadata) must be known before the server binds, which an OS-assigned ('auto') port cannot provide."
+          );
+        }
+      }
+      const externalIdpOptionsGiven = [
+        opts.externalIdpIssuer,
+        opts.externalIdpAudience,
+        opts.claimsConfig,
+      ].filter((value) => value !== undefined).length;
+      if (externalIdpOptionsGiven > 0) {
+        if (!opts.oauthResourceServer) {
+          throw new Error(
+            '--external-idp-issuer/--external-idp-audience/--claims-config require --oauth-resource-server.'
+          );
+        }
+        if (externalIdpOptionsGiven < 3) {
+          throw new Error(
+            '--external-idp-issuer, --external-idp-audience, and --claims-config must be given together.'
           );
         }
       }
@@ -479,6 +533,41 @@ export default function setup() {
         await startStdioTransport(service, startupInfo);
       } else {
         const resolvedPort = parseMcpHttpPortOption(opts.port);
+        const resourceServerUrl = new URL(
+          `http://${opts.bindHost ?? '127.0.0.1'}:${resolvedPort}/mcp`
+        );
+        let oauthResourceServerOptions: McpOAuthResourceServerOptions | undefined;
+        if (opts.oauthResourceServer && opts.externalIdpIssuer) {
+          // External-IDP "shared mode": validate against a third-party
+          // OIDC provider and map the verified identity's claims to a
+          // pre-provisioned service account — never the caller's own
+          // (non-AM) token, and never an admin/primary-account credential
+          // (the claim-mapping schema can't express either).
+          const { oauthMetadata, jwks } = await fetchExternalIdpMetadata(
+            opts.externalIdpIssuer
+          );
+          const claimMapping = loadClaimMappingConfig(opts.claimsConfig);
+          oauthResourceServerOptions = {
+            verifier: buildExternalIdpVerifier(
+              oauthMetadata,
+              jwks,
+              opts.externalIdpAudience
+            ),
+            oauthMetadata,
+            resourceServerUrl,
+            resolveCredential: buildClaimMappedCredentialResolver(
+              claimMapping,
+              state.getHost()
+            ),
+          };
+        } else if (opts.oauthResourceServer) {
+          // AM-as-IdP mode: the caller's own token IS the AM credential.
+          oauthResourceServerOptions = {
+            verifier: buildAmTokenInfoVerifier(state.getHost()),
+            oauthMetadata: buildAmOAuthMetadata(state.getHost()),
+            resourceServerUrl,
+          };
+        }
         await startHttpTransport(
           service,
           opts.bindHost ?? '127.0.0.1',
@@ -489,15 +578,7 @@ export default function setup() {
             authToken,
             maxBodySizeBytes,
             maxConcurrentRequests,
-            oauthResourceServer: opts.oauthResourceServer
-              ? {
-                  verifier: buildAmTokenInfoVerifier(state.getHost()),
-                  oauthMetadata: buildAmOAuthMetadata(state.getHost()),
-                  resourceServerUrl: new URL(
-                    `http://${opts.bindHost ?? '127.0.0.1'}:${resolvedPort}/mcp`
-                  ),
-                }
-              : undefined,
+            oauthResourceServer: oauthResourceServerOptions,
           }
         );
       }

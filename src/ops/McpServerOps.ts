@@ -64,6 +64,10 @@ import { z } from 'zod';
 
 import { printMessage } from '../utils/Console.js';
 import { getUseDeviceFlow } from './AuthenticateOps.js';
+import {
+  type McpClaimMappingConfig,
+  resolveServiceAccountForClaims,
+} from './McpClaimMapping.js';
 import { McpLogger, type McpProtocolLogLevel } from './McpLogger.js';
 import {
   getMcpHttpLockfilePath,
@@ -755,6 +759,14 @@ export type McpHttpTransportOptions = {
 };
 
 /**
+ * Minimal JWKS document shape needed to verify a token's signature — not
+ * re-exported from frodo-lib's `JoseOps.ts` (an internal JOSE type, not a
+ * public MCP-relevant symbol); `frodo.utils.jose.verifyJwtAgainstJwks()`
+ * accepts this same shape.
+ */
+type JwksInterface = { keys: Record<string, unknown>[] };
+
+/**
  * Resource-server configuration for the MCP HTTP transport's OAuth 2.1
  * "shared mode" (see `McpHttpTransportOptions.oauthResourceServer`).
  */
@@ -765,6 +777,16 @@ export type McpOAuthResourceServerOptions = {
   oauthMetadata: OAuthMetadata;
   /** This MCP server's own public URL (the RFC 9728 `resource` value). */
   resourceServerUrl: URL;
+  /**
+   * Optional post-verification hook: resolves a freshly-verified `AuthInfo`
+   * into an enriched one that names a specific frodo-side credential to
+   * actually use for this request (external-IDP "shared mode"'s claim-to-
+   * service-account mapping — see `buildClaimMappedCredentialResolver`).
+   * When omitted (AM-as-IdP mode), the verified token itself is used
+   * directly as the AM credential — see `buildRequestContext`'s
+   * bearer-token branch for how the two shapes are told apart.
+   */
+  resolveCredential?: (authInfo: AuthInfo) => Promise<AuthInfo>;
 };
 
 /**
@@ -839,6 +861,149 @@ export function buildAmTokenInfoVerifier(amBaseUrl: string): OAuthTokenVerifier 
         },
       };
     },
+  };
+}
+
+/**
+ * Fetches an OIDC provider's discovery document and JWKS once, at startup
+ * — not per-request. A real production concern this deliberately doesn't
+ * handle yet: key rotation mid-session (a JWKS fetched at startup can go
+ * stale if the external IDP rotates its signing keys before the server is
+ * restarted) — flagged here rather than silently assumed away.
+ */
+export async function fetchExternalIdpMetadata(
+  issuerUrl: string
+): Promise<{ oauthMetadata: OAuthMetadata; jwks: JwksInterface }> {
+  const discoveryUrl = `${issuerUrl.replace(/\/$/, '')}/.well-known/openid-configuration`;
+  const discoveryResponse = await fetch(discoveryUrl);
+  if (!discoveryResponse.ok) {
+    throw new Error(
+      `Failed to fetch OIDC discovery document from ${discoveryUrl}: HTTP ${discoveryResponse.status}`
+    );
+  }
+  const oauthMetadata = (await discoveryResponse.json()) as OAuthMetadata & {
+    jwks_uri?: string;
+  };
+  if (!oauthMetadata.jwks_uri) {
+    throw new Error(
+      `OIDC discovery document at ${discoveryUrl} has no jwks_uri.`
+    );
+  }
+  const jwksResponse = await fetch(oauthMetadata.jwks_uri);
+  if (!jwksResponse.ok) {
+    throw new Error(
+      `Failed to fetch JWKS from ${oauthMetadata.jwks_uri}: HTTP ${jwksResponse.status}`
+    );
+  }
+  const jwks = (await jwksResponse.json()) as JwksInterface;
+  return { oauthMetadata, jwks };
+}
+
+/**
+ * Builds an {@link OAuthTokenVerifier} that verifies a caller-presented
+ * bearer token against a third-party OIDC provider (Entra ID, Okta, etc.)
+ * instead of the target AM/AIC tenant — external-IDP "shared mode".
+ *
+ * @remarks
+ * Unlike {@link buildAmTokenInfoVerifier}, this never talks to AM at all:
+ * verification is entirely local (signature against the IDP's own
+ * published JWKS, plus issuer/audience/expiry checks) — the external
+ * identity only gates access to this server; it is not, by itself, an AM
+ * credential. See `buildClaimMappedCredentialResolver` for how a verified
+ * external identity is actually mapped to something Frodo can use against
+ * AM/IDM.
+ */
+export function buildExternalIdpVerifier(
+  oauthMetadata: OAuthMetadata,
+  jwks: JwksInterface,
+  audience: string
+): OAuthTokenVerifier {
+  return {
+    async verifyAccessToken(token: string): Promise<AuthInfo> {
+      let claims: Record<string, unknown>;
+      try {
+        claims = await frodo.utils.jose.verifyJwtAgainstJwks(token, jwks);
+      } catch {
+        throw new OAuthError(
+          OAuthErrorCode.InvalidToken,
+          "Token signature could not be verified against the configured external IDP's published keys."
+        );
+      }
+      if (claims.iss !== oauthMetadata.issuer) {
+        throw new OAuthError(
+          OAuthErrorCode.InvalidToken,
+          'Token issuer does not match the configured external IDP.'
+        );
+      }
+      const audiences = Array.isArray(claims.aud) ? claims.aud : [claims.aud];
+      if (!audiences.includes(audience)) {
+        throw new OAuthError(
+          OAuthErrorCode.InvalidToken,
+          'Token audience does not match the configured client.'
+        );
+      }
+      const expiresAt = typeof claims.exp === 'number' ? claims.exp : undefined;
+      if (!expiresAt || expiresAt * 1000 <= Date.now()) {
+        throw new OAuthError(OAuthErrorCode.InvalidToken, 'Token is expired.');
+      }
+      const scopeClaim = claims.scope;
+      return {
+        token,
+        clientId: String(
+          claims.azp ?? (Array.isArray(claims.aud) ? claims.aud[0] : claims.aud)
+        ),
+        scopes: typeof scopeClaim === 'string' ? scopeClaim.split(' ') : [],
+        expiresAt,
+        // The full verified claim set — buildClaimMappedCredentialResolver
+        // reads the operator-configured claim name out of this.
+        extra: claims,
+      };
+    },
+  };
+}
+
+/**
+ * Builds the post-verification `resolveCredential` hook for external-IDP
+ * "shared mode": reads the operator-configured claim off the verified
+ * token, looks it up in the claim-mapping table, and — on a match —
+ * fetches that named additional service account from the target
+ * connection profile, attaching its id/JWK to the returned `AuthInfo` for
+ * `buildRequestContext` to pick up.
+ *
+ * @throws (via a rejected `OAuthError(InsufficientScope)`, mapped to a
+ * `403` challenge by `bearerAuthChallengeResponse`) when the token is
+ * genuinely valid but nothing in the claim-mapping table matches — a
+ * valid external identity with no configured access is a real, expected
+ * outcome, not a bug, and must fail closed rather than fall back to any
+ * default credential.
+ */
+export function buildClaimMappedCredentialResolver(
+  claimMapping: McpClaimMappingConfig,
+  host: string
+): (authInfo: AuthInfo) => Promise<AuthInfo> {
+  return async (authInfo: AuthInfo): Promise<AuthInfo> => {
+    const serviceAccountName = resolveServiceAccountForClaims(
+      claimMapping,
+      authInfo.extra ?? {}
+    );
+    if (!serviceAccountName) {
+      throw new OAuthError(
+        OAuthErrorCode.InsufficientScope,
+        `No claim mapping matched this token's '${claimMapping.claimName}' claim - access denied.`
+      );
+    }
+    const account = await frodo.conn.getAdditionalServiceAccount(
+      host,
+      serviceAccountName
+    );
+    return {
+      ...authInfo,
+      extra: {
+        ...authInfo.extra,
+        resolvedServiceAccountId: account.svcacctId,
+        resolvedServiceAccountJwk: account.svcacctJwk,
+      },
+    };
   };
 }
 
@@ -1447,6 +1612,18 @@ async function handleHttpRequest(
         authorization,
         oauthResourceServer
       );
+      // External-IDP mode only: maps the verified external identity's
+      // claims to a specific frodo-side credential (AM-as-IdP mode has no
+      // resolver — the verified token itself already IS the AM
+      // credential). Runs on every request, not just once — cheap (a
+      // local table lookup plus one already-cached-locally-encrypted
+      // profile read), and correctly reflects a claim-mapping table the
+      // operator could update between requests without restarting.
+      if (oauthResourceServer.resolveCredential) {
+        oauthAuthInfo = await oauthResourceServer.resolveCredential(
+          oauthAuthInfo
+        );
+      }
       debug?.(
         `oauth: verified bearer token (clientId=${oauthAuthInfo.clientId})`
       );
@@ -2799,6 +2976,31 @@ export function buildRequestContext(
   // session — `host`/`deploymentType` are the only things configured on
   // `state`, for exactly this purpose).
   if (host && authInfo) {
+    // External-IDP mode: the resource-server gate's resolveCredential hook
+    // already mapped this request's claims to a specific additional
+    // service account (buildClaimMappedCredentialResolver) — use that
+    // instead of the caller's own (external, not AM-native) token, which
+    // is never itself a usable AM credential in this mode.
+    const resolvedServiceAccountId = authInfo.extra?.resolvedServiceAccountId as
+      | string
+      | undefined;
+    const resolvedServiceAccountJwk = authInfo.extra?.resolvedServiceAccountJwk;
+    if (resolvedServiceAccountId && resolvedServiceAccountJwk) {
+      return {
+        ...sharedContext,
+        auth: {
+          mode: 'service-account',
+          host,
+          serviceAccountId: resolvedServiceAccountId,
+          serviceAccountJwk: JSON.stringify(resolvedServiceAccountJwk),
+          realm,
+          deploymentType: state.getDeploymentType(),
+          allowInsecureConnection: state.getAllowInsecureConnection(),
+          debug: state.getDebug(),
+          curlirize: state.getCurlirize(),
+        },
+      };
+    }
     return {
       ...sharedContext,
       auth: {
