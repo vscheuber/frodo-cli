@@ -32,16 +32,27 @@ import {
   hostHeaderValidation,
   localhostOriginValidation,
   NodeStreamableHTTPServerTransport,
+  toWebRequest,
 } from '@modelcontextprotocol/node';
 import {
+  type AuthInfo,
+  bearerAuthChallengeResponse,
+  getOAuthProtectedResourceMetadataUrl,
   localhostAllowedHostnames,
   McpServer,
+  type OAuthMetadata,
+  OAuthError,
+  OAuthErrorCode,
+  oauthMetadataResponse,
+  type OAuthTokenVerifier,
   PROTOCOL_VERSION_META_KEY,
   ToolAnnotations,
   UnsupportedProtocolVersionError,
+  verifyBearerToken,
 } from '@modelcontextprotocol/server';
 import { serveStdio } from '@modelcontextprotocol/server/stdio';
 import {
+  frodo,
   getRealmFromContext,
   type McpRuntimeRequestContext,
   type McpService,
@@ -551,7 +562,8 @@ export function buildMcpServer(
               arguments: args,
               context: buildRequestContext(
                 undefined,
-                buildTraceHandler(ctx, startupInfo?.logger)
+                buildTraceHandler(ctx, startupInfo?.logger),
+                ctx.http?.authInfo
               ),
             });
             return buildSuccessResult(result);
@@ -575,7 +587,8 @@ export function buildMcpServer(
               arguments: args,
               context: buildRequestContext(
                 undefined,
-                buildTraceHandler(ctx, startupInfo?.logger)
+                buildTraceHandler(ctx, startupInfo?.logger),
+                ctx.http?.authInfo
               ),
             });
             return buildSuccessResult(result);
@@ -599,7 +612,8 @@ export function buildMcpServer(
               arguments: args,
               context: buildRequestContext(
                 undefined,
-                buildTraceHandler(ctx, startupInfo?.logger)
+                buildTraceHandler(ctx, startupInfo?.logger),
+                ctx.http?.authInfo
               ),
             });
             return buildSuccessResult(result);
@@ -627,7 +641,8 @@ export function buildMcpServer(
               arguments: args,
               context: buildRequestContext(
                 realm,
-                buildTraceHandler(ctx, startupInfo?.logger)
+                buildTraceHandler(ctx, startupInfo?.logger),
+                ctx.http?.authInfo
               ),
             });
             return buildSuccessResult(result);
@@ -651,7 +666,8 @@ export function buildMcpServer(
               arguments: args,
               context: buildRequestContext(
                 undefined,
-                buildTraceHandler(ctx, startupInfo?.logger)
+                buildTraceHandler(ctx, startupInfo?.logger),
+                ctx.http?.authInfo
               ),
             });
             return buildSuccessResult(result);
@@ -726,7 +742,118 @@ export type McpHttpTransportOptions = {
    * slot until its handler resolves.
    */
   maxConcurrentRequests?: number;
+  /**
+   * Configures the HTTP transport as an OAuth 2.1 resource server ("shared
+   * mode"): each `POST /mcp` request presents its own bearer token, verified
+   * against the target AM/AIC tenant, instead of a single shared secret
+   * gating access to one identity pre-authenticated at startup. Mutually
+   * exclusive with `authToken` (enforced by the caller, `server-start.ts`) —
+   * a server is either shared-secret-gated or a real per-connection
+   * resource server, never both.
+   */
+  oauthResourceServer?: McpOAuthResourceServerOptions;
 };
+
+/**
+ * Resource-server configuration for the MCP HTTP transport's OAuth 2.1
+ * "shared mode" (see `McpHttpTransportOptions.oauthResourceServer`).
+ */
+export type McpOAuthResourceServerOptions = {
+  /** Verifies a caller-presented bearer token against the target tenant. */
+  verifier: OAuthTokenVerifier;
+  /** RFC 8414 Authorization Server metadata for the target tenant. */
+  oauthMetadata: OAuthMetadata;
+  /** This MCP server's own public URL (the RFC 9728 `resource` value). */
+  resourceServerUrl: URL;
+};
+
+/**
+ * Builds RFC 8414 Authorization Server metadata for an AM/AIC tenant's
+ * OAuth2 Provider, from its well-known, deterministic endpoint URL scheme
+ * (`OAuth2OIDCApi.ts`'s own templates) — root realm only for now, matching
+ * `verifyMcpOAuthBearerToken`'s own root-realm-scoped tokeninfo call.
+ *
+ * @remarks
+ * Hand-built rather than fetched live from the tenant's own discovery
+ * document: AM's endpoint shape is fixed and already known to frodo-lib, so
+ * a live fetch would only add a startup network dependency (and a new
+ * failure mode) for information that's actually deterministic given
+ * `amBaseUrl`.
+ */
+export function buildAmOAuthMetadata(amBaseUrl: string): OAuthMetadata {
+  return {
+    issuer: `${amBaseUrl}/oauth2`,
+    authorization_endpoint: `${amBaseUrl}/oauth2/authorize`,
+    token_endpoint: `${amBaseUrl}/oauth2/access_token`,
+    jwks_uri: `${amBaseUrl}/oauth2/connect/jwk_uri`,
+    response_types_supported: ['code'],
+    grant_types_supported: [
+      'authorization_code',
+      'refresh_token',
+      'urn:ietf:params:oauth:grant-type:device_code',
+    ],
+    token_endpoint_auth_methods_supported: [
+      'none',
+      'client_secret_post',
+      'private_key_jwt',
+    ],
+    code_challenge_methods_supported: ['S256'],
+  };
+}
+
+/**
+ * Builds an {@link OAuthTokenVerifier} that verifies a caller-presented
+ * bearer token by calling the target AM/AIC tenant's own `/oauth2/tokeninfo`
+ * endpoint — the token IS the credential; this only confirms it's live and
+ * extracts the granted scope/expiry/subject before the runtime wires it
+ * onto a fresh, request-scoped Frodo instance (see
+ * `AuthenticateOps.applyAccessToken()` in frodo-lib).
+ */
+export function buildAmTokenInfoVerifier(amBaseUrl: string): OAuthTokenVerifier {
+  return {
+    async verifyAccessToken(token: string): Promise<AuthInfo> {
+      let info;
+      try {
+        info = await frodo.oauth2oidc.endpoint.getTokenInfo(amBaseUrl, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      } catch {
+        throw new OAuthError(
+          OAuthErrorCode.InvalidToken,
+          'Token is unknown, revoked, expired, or otherwise invalid for this tenant.'
+        );
+      }
+      return {
+        token,
+        clientId: info.aud,
+        scopes: info.scope ?? [],
+        expiresAt: info.exp,
+        extra: {
+          sub: info.sub,
+          realm: info.realm,
+          tokenName: info.tokenName,
+          // Present only when the issuing OAuth2 client has a
+          // session-capture script configured (ForgeOps/classic) — see
+          // AccessTokenMetaType's own sessionId field, the same shape.
+          sessionToken: info.sessionToken,
+        },
+      };
+    },
+  };
+}
+
+/**
+ * Verifies a raw `Authorization` header as a bearer token for the OAuth 2.1
+ * resource-server mode. Thin wrapper over the SDK's `verifyBearerToken` —
+ * exported so its exact call shape (which options it forwards) has direct
+ * unit coverage without a real HTTP round trip.
+ */
+export function verifyMcpOAuthBearerToken(
+  authorization: string | undefined,
+  options: McpOAuthResourceServerOptions
+): Promise<AuthInfo> {
+  return verifyBearerToken(authorization, { verifier: options.verifier });
+}
 
 /**
  * Computes the effective `Host` header allow-list for the HTTP transport.
@@ -901,7 +1028,8 @@ export async function startHttpTransport(
           options?.authToken,
           options?.maxBodySizeBytes ?? DEFAULT_MCP_HTTP_MAX_BODY_SIZE_BYTES,
           limiter,
-          debugLog
+          debugLog,
+          options?.oauthResourceServer
         );
       } catch (err) {
         // The body-limit rejection travels this same path by design (a throw
@@ -1201,7 +1329,8 @@ async function handleHttpRequest(
   authToken: string | undefined,
   maxBodySizeBytes: number,
   limiter: McpHttpConcurrencyLimiter,
-  debug: ((message: string) => void) | undefined
+  debug: ((message: string) => void) | undefined,
+  oauthResourceServer?: McpOAuthResourceServerOptions
 ): Promise<void> {
   // Arrival line: even 404s and health probes are visible at debug level.
   // The path only, never the query string: the URL is logged before any
@@ -1217,6 +1346,25 @@ async function handleHttpRequest(
   // the widened auth surface below stays in lockstep (the bearer gate keys
   // on the same route, so widening it widens the authed surface identically
   // — no change in exposure).
+
+  // RFC 9728/8414 discovery, OAuth-resource-server mode only: served before
+  // any other routing so a client (or gateway) that hasn't authenticated
+  // yet can still discover the Authorization Server. GET-only — discovery
+  // documents are always fetched with GET, and toWebRequest() would
+  // otherwise consume a POST /mcp body meant for the transport below.
+  if (req.method === 'GET' && oauthResourceServer) {
+    const webRequest = await toWebRequest(req);
+    const discoveryResponse = await oauthMetadataResponse(webRequest, {
+      oauthMetadata: oauthResourceServer.oauthMetadata,
+      resourceServerUrl: oauthResourceServer.resourceServerUrl,
+      resourceName: MCP_SERVER_NAME,
+    });
+    if (discoveryResponse) {
+      debug?.(`discovery: served ${routePath}`);
+      await writeWebResponse(res, discoveryResponse);
+      return;
+    }
+  }
 
   // Health probe — deliberately unauthenticated: liveness probes must not
   // need secrets, and the body leaks only `{ status: 'ok' }`.
@@ -1279,6 +1427,42 @@ async function handleHttpRequest(
           },
         },
         { 'WWW-Authenticate': 'Bearer error="invalid_token"' }
+      );
+      return;
+    }
+  }
+
+  // OAuth 2.1 resource-server gate ("shared mode"): mutually exclusive with
+  // the static-secret gate above (server-start.ts's CLI wiring enforces
+  // this — a server is either shared-secret-gated or a real per-connection
+  // resource server, never both). On success, the verified AuthInfo is
+  // attached to `req` so the transport forwards it to every tool-call
+  // handler as `ctx.http.authInfo` (see buildRequestContext's bearer-token
+  // branch) — this request's identity, not the process's.
+  let oauthAuthInfo: AuthInfo | undefined;
+  if (oauthResourceServer) {
+    const authorization = getSingleHeaderValue(req, 'authorization');
+    try {
+      oauthAuthInfo = await verifyMcpOAuthBearerToken(
+        authorization,
+        oauthResourceServer
+      );
+      debug?.(
+        `oauth: verified bearer token (clientId=${oauthAuthInfo.clientId})`
+      );
+    } catch (error) {
+      debug?.(
+        authorization === undefined
+          ? 'rejected: unauthorized (no Authorization header)'
+          : `rejected: unauthorized (${error instanceof OAuthError ? error.code : 'verification failed'})`
+      );
+      await writeWebResponse(
+        res,
+        bearerAuthChallengeResponse(error, {
+          resourceMetadataUrl: getOAuthProtectedResourceMetadataUrl(
+            oauthResourceServer.resourceServerUrl
+          ),
+        })
       );
       return;
     }
@@ -1486,10 +1670,36 @@ async function handleHttpRequest(
     debug?.(
       `POST /mcp accepted from ${req.socket?.remoteAddress ?? 'unknown'}${extractBodyMethod(body) ? ` (${extractBodyMethod(body)})` : ''}`
     );
-    await transport.handleRequest(req, res, body);
+    // Pass-through: the transport forwards this verified identity to every
+    // tool-call handler on this one request as `ctx.http.authInfo` — never
+    // read from request headers by the transport itself (see
+    // NodeStreamableHTTPServerTransport.handleRequest's own contract).
+    const requestWithAuth = req as IncomingMessage & { auth?: AuthInfo };
+    if (oauthAuthInfo) {
+      requestWithAuth.auth = oauthAuthInfo;
+    }
+    await transport.handleRequest(requestWithAuth, res, body);
   } finally {
     limiter.release();
   }
+}
+
+/**
+ * Writes a web-standard {@link Response} (from an SDK helper like
+ * `oauthMetadataResponse`/`bearerAuthChallengeResponse`) to a raw Node
+ * `ServerResponse`. Discovery documents and OAuth error bodies are always
+ * small, fully-buffered JSON — no streaming needed.
+ */
+async function writeWebResponse(
+  res: ServerResponse,
+  response: Response
+): Promise<void> {
+  const headers: Record<string, string> = {};
+  response.headers.forEach((value, key) => {
+    headers[key] = value;
+  });
+  res.writeHead(response.status, headers);
+  res.end(Buffer.from(await response.arrayBuffer()));
 }
 
 /**
@@ -2564,11 +2774,15 @@ export async function resolveFrodoForMcpRequest(
 }
 
 /**
- * Builds request-scoped runtime auth context from active frodo state.
+ * Builds request-scoped runtime auth context from active frodo state (or,
+ * for the OAuth resource-server mode, from a caller-verified `authInfo`).
+ * Exported for direct unit coverage of the bearer-token branch, matching
+ * `verifyMcpBearerAuthorization`'s own rationale.
  */
-function buildRequestContext(
+export function buildRequestContext(
   realmOverride?: string,
-  trace?: McpToolRuntimeTraceHandler
+  trace?: McpToolRuntimeTraceHandler,
+  authInfo?: AuthInfo
 ): McpRuntimeRequestContext {
   const host = state.getHost();
   const realm = realmOverride ?? state.getRealm();
@@ -2576,6 +2790,34 @@ function buildRequestContext(
     requestId: crypto.randomUUID(),
     ...(trace && { trace }),
   };
+
+  // Shared/OAuth-resource-server mode: this one request presented its own,
+  // already-verified bearer token (verifyMcpOAuthBearerToken, called before
+  // the transport ever saw this request) — it wins outright over every
+  // ambient-state branch below, since in this mode the process itself never
+  // logs in at all (no service account, no admin account, no browser
+  // session — `host`/`deploymentType` are the only things configured on
+  // `state`, for exactly this purpose).
+  if (host && authInfo) {
+    return {
+      ...sharedContext,
+      auth: {
+        mode: 'bearer-token',
+        host,
+        accessToken: authInfo.token,
+        scope: authInfo.scopes?.join(' '),
+        expiresAt: authInfo.expiresAt
+          ? authInfo.expiresAt * 1000
+          : undefined,
+        sessionId: authInfo.extra?.sessionToken as string | undefined,
+        realm,
+        deploymentType: state.getDeploymentType(),
+        allowInsecureConnection: state.getAllowInsecureConnection(),
+        debug: state.getDebug(),
+        curlirize: state.getCurlirize(),
+      },
+    };
+  }
 
   const serviceAccountId = state.getServiceAccountId();
   const serviceAccountJwk = state.getServiceAccountJwk();
